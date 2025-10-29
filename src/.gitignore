@@ -1,0 +1,18 @@
+# Ignorer les environnements virtuels
+venv/
+.env
+
+# Ignorer les fichiers temporaires et caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+*.log
+
+# Ignorer VSCode et autres outils locaux
+.vscode/
+.idea/
+*.bat
+*.sh

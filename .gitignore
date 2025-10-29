@@ -1,0 +1,27 @@
+# Environnements virtuels
+.env
+venv/
+__pycache__/
+
+# Fichiers temporaires / IDE
+*.log
+*.sqlite3
+*.db
+.vscode/
+.idea/
+
+# Ignore la base de données locale
+src/database/*.db
+*.sqlite
+*.sqlite3
+
+# Cache / build
+*.pyc
+*.pyo
+*.DS_Store
+
+# Fichiers de configuration local
+GUIDE_INSTALLATION_DETAILLE.md
+LANCEMENT_RAPIDE.bat
+lancement_rapide.sh
+leScript.jsx
