@@ -10,7 +10,6 @@ load_dotenv(os.path.join(project_root, '.env'))
 
 from flask import Flask, send_from_directory
 from flask_cors import CORS
-from flask_session import Session
 from src.models.user import db
 from src.routes.user import user_bp
 from src.routes.auth import auth_bp
@@ -47,25 +46,12 @@ from datetime import timedelta
 
 is_production = os.getenv('FLASK_ENV') == 'production'
 
-# Configuration de session
-app.config['SESSION_TYPE'] = 'null'  # compatible Vercel (pas de sessions sur disque)
-app.config['SESSION_FILE_DIR'] = None
-app.config['SESSION_PERMANENT'] = True
-app.config['SESSION_USE_SIGNER'] = True
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
-
-if is_production:
-    app.config['SESSION_COOKIE_SAMESITE'] = 'None'
-    app.config['SESSION_COOKIE_SECURE'] = True
-    # Définir le domaine cookie pour permettre le partage entre frontend et backend sur vercel.app
-    app.config['SESSION_COOKIE_DOMAIN'] = '.vercel.app'
-else:
-    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Lax car proxy Vite = même origine
-    app.config['SESSION_COOKIE_SECURE'] = False
-    app.config['SESSION_COOKIE_DOMAIN'] = None
-
+# Configuration de session native Flask (sans Flask-Session)
+app.config['SESSION_COOKIE_SAMESITE'] = 'None' if is_production else 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = True if is_production else False
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_NAME'] = 'nonotalk_session'
+app.config['SESSION_COOKIE_DOMAIN'] = '.vercel.app' if is_production else None
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'nonotalk-secret-key-2025')
 
 # Options moteur SQLAlchemy: SSL requis + pré-ping pour éviter timeouts Render
 if app.config['SQLALCHEMY_DATABASE_URI'] and app.config['SQLALCHEMY_DATABASE_URI'].startswith("postgresql"):
@@ -75,7 +61,6 @@ if app.config['SQLALCHEMY_DATABASE_URI'] and app.config['SQLALCHEMY_DATABASE_URI
     }
 
 # CORS précis pour origines autorisées (credentials cross-site)
-# Exemple d'ENV: FRONTEND_ORIGINS="https://nonotalk-frontend.onrender.com,http://localhost:5173"
 frontend_origins_env = os.getenv('FRONTEND_ORIGINS', '')
 origins_list = [o.strip() for o in frontend_origins_env.split(',') if o.strip()]
 if not origins_list:
@@ -89,10 +74,8 @@ if not origins_list:
 def cors_origin_validator(origin):
     if origin is None:
         return False
-    # Autoriser localhost et 127.0.0.1
     if origin in origins_list:
         return True
-    # Autoriser les sous-domaines vercel.app (frontend et backend)
     if origin.endswith('.vercel.app'):
         return True
     return False
@@ -103,9 +86,6 @@ def cors_origin_callable(origin):
     return False
 
 CORS(app, supports_credentials=True, resources={r"/*": {"origins": cors_origin_callable}})
-
-# Initialisation de Flask-Session
-Session(app)
 
 # Enregistrement des blueprints
 app.register_blueprint(user_bp, url_prefix='/api')
@@ -125,7 +105,7 @@ with app.app_context():
 def serve(path):
     static_folder_path = app.static_folder
     if static_folder_path is None:
-            return "Static folder not configured", 404
+        return "Static folder not configured", 404
 
     if path != "" and os.path.exists(os.path.join(static_folder_path, path)):
         return send_from_directory(static_folder_path, path)
@@ -138,14 +118,11 @@ def serve(path):
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    """Point de santé de l'API"""
     return {'status': 'ok', 'message': 'NonoTalk API is running'}, 200
 
 @app.route('/api/test', methods=['GET'])
 def test_endpoint():
-    """Endpoint de test pour vérifier l'API"""
     return {'status': 'ok', 'message': 'API is working', 'cors': 'enabled'}, 200
 
 if __name__ == '__main__':
-    # threaded=True pour éviter tout blocage et améliorer le flush SSE en dev
     app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
