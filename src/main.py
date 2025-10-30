@@ -56,7 +56,8 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 if is_production:
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'
     app.config['SESSION_COOKIE_SECURE'] = True
-    app.config['SESSION_COOKIE_DOMAIN'] = None
+    # Définir le domaine cookie pour permettre le partage entre frontend et backend sur vercel.app
+    app.config['SESSION_COOKIE_DOMAIN'] = '.vercel.app'
 else:
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Lax car proxy Vite = même origine
     app.config['SESSION_COOKIE_SECURE'] = False
@@ -83,9 +84,24 @@ if not origins_list:
         'http://localhost:4173',
         'https://nonotalk-frontend.onrender.com'
     ]
-# Autoriser dynamiquement les front Render (*.onrender.com) tout en supportant les credentials
-render_regex = re.compile(r"^https://.*\.onrender\.com$")
-CORS(app, supports_credentials=True, resources={r"/*": {"origins": origins_list + [render_regex]}})
+
+def cors_origin_validator(origin):
+    if origin is None:
+        return False
+    # Autoriser localhost et 127.0.0.1
+    if origin in origins_list:
+        return True
+    # Autoriser les sous-domaines vercel.app (frontend et backend)
+    if origin.endswith('.vercel.app'):
+        return True
+    return False
+
+def cors_origin_callable(origin):
+    if cors_origin_validator(origin):
+        return origin
+    return False
+
+CORS(app, supports_credentials=True, resources={r"/*": {"origins": cors_origin_callable}})
 
 # Initialisation de Flask-Session
 Session(app)
