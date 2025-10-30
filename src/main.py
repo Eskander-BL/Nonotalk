@@ -48,7 +48,8 @@ from datetime import timedelta
 is_production = os.getenv('FLASK_ENV') == 'production'
 
 # Configuration de session
-app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_TYPE'] = 'null'  # compatible Vercel (pas de sessions sur disque)
+app.config['SESSION_FILE_DIR'] = None
 app.config['SESSION_PERMANENT'] = True
 app.config['SESSION_USE_SIGNER'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
